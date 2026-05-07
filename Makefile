@@ -1,19 +1,36 @@
-# digitpic-lvgl top-level Makefile
-# Single-pass build: compiles LVGL + all layered application sources → final binary
+# ================================================================
+# 顶层 Makefile — 单遍构建: 编译 LVGL + 全部应用层源码 → 最终可执行文件
+# ================================================================
+# 构建产物: build/digitpic
+# 交叉编译: arm-linux-gnueabihf-gcc
+#
+# 架构说明:
+#  本项目采用分层架构 (由上到下):
+#    app/        — 应用控制器、页面管理器
+#    ui/         — 页面 screens + 自定义控件 widgets + 全局样式 styles
+#    service/    — 文件服务、音乐服务、图片服务
+#    hal/        — 硬件抽象层 (display/input/audio)
+#    util/       — 调试日志、链表工具
+#    config/     — 全局配置宏
+#
+#  LVGL 源码通过 lvgl.mk / lv_drivers.mk 引入，
+#  其 VPATH 机制自动在 lvgl/src/* 中查找 .c 文件。
+# ================================================================
 
 include common.mk
 
-# For LVGL .mk files: LVGL_DIR must be project root, LVGL_DIR_NAME = lvgl
+# --- LVGL 源码列表 (设置 CSRCS/ASRCS 和 VPATH) ---
 LVGL_DIR_NAME       := lvgl
 LV_DRIVERS_DIR_NAME := lv_drivers
 
 include $(LVGL_DIR)/lvgl/lvgl.mk
 include $(LVGL_DIR)/lv_drivers/lv_drivers.mk
 
+# --- 构建输出路径 ---
 BUILD_DIR := build
 TARGET    := $(BUILD_DIR)/digitpic
 
-# Our layered source files (relative to project root)
+# --- 本项目的分层源码 (相对于项目根目录) ---
 OUR_SRCS := \
 	util/debug.c util/list.c \
 	hal/display/fb_driver.c hal/display/lvgl_display.c \
@@ -30,13 +47,14 @@ OUR_SRCS := \
 
 OUR_OBJS := $(patsubst %.c,$(BUILD_DIR)/%.o,$(OUR_SRCS))
 
-# LVGL objects (CSRCS/ASRCS set by lvgl.mk / lv_drivers.mk)
+# --- LVGL 对象文件 ---
 LVGL_COBJS := $(patsubst %.c,$(BUILD_DIR)/%.o,$(CSRCS))
 LVGL_AOBJS := $(patsubst %.S,$(BUILD_DIR)/%.o,$(ASRCS))
 
+# --- 主程序入口 ---
 MAIN_OBJ := $(BUILD_DIR)/main.o
 
-# Additional include paths from LVGL .mk files may be quoted; ensure TOP_DIR is in path
+# --- 编译/链接选项 ---
 CFLAGS  += -I$(TOP_DIR)
 LDFLAGS := -lm -lpthread
 
@@ -44,24 +62,25 @@ LDFLAGS := -lm -lpthread
 
 all: $(TARGET)
 
-# Link
+# --- 最终链接 ---
 $(TARGET): $(MAIN_OBJ) $(OUR_OBJS) $(LVGL_COBJS) $(LVGL_AOBJS)
 	$(CC) -o $@ $^ $(LDFLAGS)
-	@echo "===== BUILD SUCCESS: $(TARGET) ====="
+	@echo "===== 构建成功: $(TARGET) ====="
 
-# Ensure build/ exists
+# --- 确保 build/ 目录存在 ---
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 
-# Pattern rule: any .c → build/<path>.o
+# --- 模式规则: .c → build/<路径>.o ---
 $(BUILD_DIR)/%.o: %.c | $(BUILD_DIR)
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-# Pattern rule: assembly → build/<path>.o
+# --- 模式规则: .S (汇编) → build/<路径>.o ---
 $(BUILD_DIR)/%.o: %.S | $(BUILD_DIR)
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -c $< -o $@
 
+# --- 清理 ---
 clean:
 	rm -rf $(BUILD_DIR)

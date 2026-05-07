@@ -1,3 +1,4 @@
+/** @file setting_screen.h 设置菜单页面 (Phase 6) */
 #ifndef SETTING_SCREEN_H
 #define SETTING_SCREEN_H
 #include "base_screen.h"

@@ -1,3 +1,4 @@
+/** @file browse_screen.h 文件浏览器页面 (Phase 6) */
 #ifndef BROWSE_SCREEN_H
 #define BROWSE_SCREEN_H
 #include "base_screen.h"

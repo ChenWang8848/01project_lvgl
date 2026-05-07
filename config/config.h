@@ -1,22 +1,38 @@
+/**
+ * @file    config.h
+ * @brief   全局配置宏 — 显示/输入/音频/调试 参数定义
+ *
+ * 所有模块可通过包含此头文件获取统一的硬件参数。
+ * 修改此文件即可适配不同硬件平台。
+ */
+
 #ifndef CONFIG_H
 #define CONFIG_H
 
-/* Display */
-#define DISP_HOR_RES  800
-#define DISP_VER_RES  480
-#define DISP_BUF_SIZE (DISP_HOR_RES * DISP_VER_RES)
+/* ================================================================
+ *  显示参数
+ * ================================================================ */
+#define DISP_HOR_RES  800              /**< 屏幕水平分辨率 */
+#define DISP_VER_RES  480              /**< 屏幕垂直分辨率 */
+#define DISP_BUF_SIZE (DISP_HOR_RES * DISP_VER_RES)  /**< LVGL draw buffer 大小 (全屏单缓冲) */
 
-/* Input device paths */
-#define TOUCHSCREEN_DEV "/dev/input/event2"
-#define MOUSE_DEV       "/dev/input/event3"
+/* ================================================================
+ *  输入设备路径
+ * ================================================================ */
+#define TOUCHSCREEN_DEV "/dev/input/event2"  /**< 触摸屏设备节点 */
+#define MOUSE_DEV       "/dev/input/event3"  /**< USB 鼠标设备节点 */
 
-/* Audio */
-#define AUDIO_SAMPLE_RATE  44100
-#define AUDIO_CHANNELS     2
-#define AUDIO_BITS         16
+/* ================================================================
+ *  音频参数
+ * ================================================================ */
+#define AUDIO_SAMPLE_RATE  44100         /**< 采样率: 44.1kHz */
+#define AUDIO_CHANNELS     2             /**< 声道数: 立体声 */
+#define AUDIO_BITS         16            /**< 量化位宽: 16bit */
 
-/* Debug */
-#define DEBUG_ENABLE 1
-#define DEBUG_UDP_PORT 12345
+/* ================================================================
+ *  调试开关
+ * ================================================================ */
+#define DEBUG_ENABLE 1                  /**< 使能调试日志 */
+#define DEBUG_UDP_PORT 12345            /**< UDP 调试日志端口 */
 
 #endif

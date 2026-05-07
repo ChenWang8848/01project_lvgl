@@ -1,3 +1,4 @@
+/** @file auto_screen.h 幻灯片播放页面 (Phase 6) */
 #ifndef AUTO_SCREEN_H
 #define AUTO_SCREEN_H
 #include "base_screen.h"

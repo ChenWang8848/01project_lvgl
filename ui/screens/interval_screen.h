@@ -1,3 +1,4 @@
+/** @file interval_screen.h 间隔设置页面 (Phase 6) */
 #ifndef INTERVAL_SCREEN_H
 #define INTERVAL_SCREEN_H
 #include "base_screen.h"
