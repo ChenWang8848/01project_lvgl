@@ -1,64 +1,74 @@
-#
-# Makefile
-#
-ARCH = arm
-CC = arm-linux-gnueabihf-gcc
-LVGL_DIR_NAME ?= lvgl
-LVGL_DIR ?= ${shell pwd}
+# digitpic-lvgl top-level Makefile
+# Builds LVGL library + layered application sub-libraries → final binary
 
-# 定义输出目录
-BUILD_DIR = build
+include common.mk
 
-CFLAGS ?= -O3 -g0 -I$(LVGL_DIR)/ #-Wall -Wshadow -Wundef -Wmissing-prototypes -Wno-discarded-qualifiers -Wall -Wextra -Wno-unused-function -Wno-error=strict-prototypes -Wpointer-arith -fno-strict-aliasing -Wno-error=cpp -Wuninitialized -Wmaybe-uninitialized -Wno-unused-parameter -Wno-missing-field-initializers -Wtype-limits -Wsizeof-pointer-memaccess -Wno-format-nonliteral -Wno-cast-qual -Wunreachable-code -Wno-switch-default -Wreturn-type -Wmultichar -Wformat-security -Wno-ignored-qualifiers -Wno-error=pedantic -Wno-sign-compare -Wno-error=missing-prototypes -Wdouble-promotion -Wclobbered -Wdeprecated -Wempty-body -Wtype-limits -Wshift-negative-value -Wstack-usage=2048 -Wno-unused-value -Wno-unused-parameter -Wno-missing-field-initializers -Wuninitialized -Wmaybe-uninitialized -Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -Wtype-limits -Wsizeof-pointer-memaccess -Wno-format-nonliteral -Wpointer-arith -Wno-cast-qual -Wmissing-prototypes -Wunreachable-code -Wno-switch-default -Wreturn-type -Wmultichar -Wno-discarded-qualifiers -Wformat-security -Wno-ignored-qualifiers -Wno-sign-compare
-LDFLAGS ?= -lm
-BIN = $(BUILD_DIR)/demo
-
-MAINSRC = ./main.c
+# LVGL source file lists (sets CSRCS, ASRCS).
+# Requires: LVGL_DIR (= TOP_DIR), LVGL_DIR_NAME (= lvgl),
+#           LV_DRIVERS_DIR_NAME (= lv_drivers)
+LVGL_DIR_NAME      := lvgl
+LV_DRIVERS_DIR_NAME := lv_drivers
 
 include $(LVGL_DIR)/lvgl/lvgl.mk
 include $(LVGL_DIR)/lv_drivers/lv_drivers.mk
 
-#CSRCS +=$(LVGL_DIR)/mouse_cursor_icon.c 
+# Subdirectories producing built-in.a, in dependency order.
+# Note: ui/ merges screens/ and widgets/ into its own archive,
+# so we do NOT list ui/screens and ui/widgets separately.
+SUB_DIRS := util hal/display hal/input hal/audio service ui app
+SUB_LIBS := $(patsubst %,%/built-in.a,$(SUB_DIRS))
 
-OBJEXT ?= .o
+BUILD_DIR := build
+TARGET   := $(BUILD_DIR)/digitpic
 
-# 将所有对象文件路径指向 build 目录
-# 修复：使用相对路径或简单文件名，避免绝对路径导致的问题
-AOBJS = $(ASRCS:.S=$(OBJEXT))
-COBJS = $(CSRCS:.c=$(OBJEXT))
-MAINOBJ = $(MAINSRC:.c=$(OBJEXT))
+CFLAGS  += -I$(TOP_DIR)
+LDFLAGS := -lm -lpthread
 
-# 将对象文件重定向到 build 目录，并保持目录结构
-AOBJS := $(patsubst %,$(BUILD_DIR)/%,$(AOBJS))
-COBJS := $(patsubst %,$(BUILD_DIR)/%,$(COBJS))
-MAINOBJ := $(patsubst %,$(BUILD_DIR)/%,$(MAINOBJ))
+.PHONY: all clean $(SUB_DIRS)
 
-SRCS = $(ASRCS) $(CSRCS) $(MAINSRC)
-OBJS = $(AOBJS) $(COBJS) $(MAINOBJ)
+all: $(TARGET)
 
-## MAINOBJ -> OBJFILES
+# Recursively build each subdirectory
+$(SUB_DIRS):
+	$(MAKE) -C $@
 
-all: default
+define sub_lib_rule
+$(1)/built-in.a: $(1)
+endef
+$(foreach dir,$(SUB_DIRS),$(eval $(call sub_lib_rule,$(dir))))
 
-# 创建 build 目录
+# Ensure build/ exists
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
+	mkdir -p $(BUILD_DIR)/lvgl/src
+	mkdir -p $(BUILD_DIR)/lv_drivers
 
-# 修改编译规则，输出到 build 目录
-# 修复：确保目标文件的目录存在
+# main.c → build/main.o
+$(BUILD_DIR)/main.o: main.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -std=c99 -c $< -o $@
+
+# LVGL sources → build/<path>.o
 $(BUILD_DIR)/%.o: %.c | $(BUILD_DIR)
 	@mkdir -p $(dir $@)
-	@$(CC) $(CFLAGS) -c $< -std=c99 -o $@
-	@echo "CC $<"
+	$(CC) $(CFLAGS) -std=c99 -c $< -o $@
 
+# LVGL assembly sources
 $(BUILD_DIR)/%.o: %.S | $(BUILD_DIR)
 	@mkdir -p $(dir $@)
-	@$(CC) $(CFLAGS) -c $< -o $@
-	@echo "AS $<"
-    
-default: $(OBJS)
-	$(CC) -o $(BIN) $(OBJS) $(LDFLAGS)
-	@echo "Linking complete: $(BIN)"
+	$(CC) $(CFLAGS) -c $< -o $@
 
-clean: 
+# Build lists
+LVGL_COBJS  := $(patsubst %.c,$(BUILD_DIR)/%.o,$(CSRCS))
+LVGL_AOBJS  := $(patsubst %.S,$(BUILD_DIR)/%.o,$(ASRCS))
+MAIN_OBJ    := $(BUILD_DIR)/main.o
+
+# Final link
+$(TARGET): $(MAIN_OBJ) $(LVGL_COBJS) $(LVGL_AOBJS) $(SUB_LIBS)
+	$(CC) -o $@ $^ $(LDFLAGS)
+	@echo "===== BUILD SUCCESS: $(TARGET) ====="
+
+clean:
+	@for dir in $(SUB_DIRS); do \
+		$(MAKE) -C $$dir clean; \
+	done
 	rm -rf $(BUILD_DIR)
