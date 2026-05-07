@@ -1,5 +1,6 @@
 #include "app/app.h"
 #include <stdint.h>
+#include <stddef.h>
 #include <sys/time.h>
 
 uint32_t custom_tick_get(void)

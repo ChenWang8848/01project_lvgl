@@ -24,4 +24,4 @@ INCLUDES := \
 	-I$(LVGL_DIR)/lvgl \
 	-I$(LVGL_DIR)/lv_drivers
 
-CFLAGS := -Wall -O2 -g -std=gnu99 $(INCLUDES)
+CFLAGS := -Wall -O2 -g -std=c99 $(INCLUDES)
