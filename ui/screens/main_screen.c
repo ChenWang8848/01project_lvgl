@@ -1,17 +1,64 @@
 /**
  * @file    main_screen.c
- * @brief   主菜单页面实现 — 显示 "hello lvgl"
+ * @brief   主菜单页面 — 手机桌面风格图标网格
  *
- * 作为 Phase 2 的验证页面，证明 LVGL 显示系统正常工作。
+ * 布局: 2行×6列 图标网格 (共12槽位)
+ *   第一行: 手动播放 / 自动播放 / 设置 (前3槽, 后3槽预留)
+ *   第二行: 全部预留 (后续扩展)
  *
- * create() 流程:
- *   1. lv_obj_create(NULL) 创建空白 screen
- *   2. 设置背景色 (深灰色 0x202020)
- *   3. 创建居中文字标签 "hello lvgl" (白色, 14pt 字体)
- *   4. lv_scr_load() 切换到当前 screen
+ *   每槽: 90×90 彩色圆角图标 + 下方文字标签
  */
 
 #include "main_screen.h"
+#include "app/page_manager.h"
+#include "ui/styles.h"
+#include <string.h>
+
+/* ================================================================
+ *  布局常量 (800×480)
+ * ================================================================ */
+#define COLS        6           /* 列数 */
+#define CELL_W      126         /* 单格宽度: (800-40)/6 ≈ 126 */
+#define ICON_SIZE   90          /* 图标边长 */
+#define ICON_OFF_X  ((CELL_W - ICON_SIZE) / 2)  /* 图标在格内水平偏移 */
+
+#define ROW1_Y      100         /* 第一行图标 Y */
+#define ROW2_Y      260         /* 第二行图标 Y (图标90+标签20+间距50) */
+#define LABEL_OFF_Y (ICON_SIZE + 6) /* 标签在图标下方偏移 */
+
+/* ================================================================
+ *  图标数据
+ * ================================================================ */
+typedef struct {
+    const char   *char_text;    /* 图标内大字 */
+    lv_style_t   *bg_style;    /* 背景样式 */
+    const char   *label;       /* 底部标签 */
+    const char   *target;      /* 目标页面名称 */
+} icon_entry_t;
+
+static const icon_entry_t g_icons[] = {
+    { "手", NULL, "手动播放", "manual"  },
+    { "自", NULL, "自动播放", "auto"    },
+    { "设", NULL, "设置",    "setting" },
+};
+#define ICON_COUNT (sizeof(g_icons) / sizeof(g_icons[0]))
+
+/* ================================================================
+ *  事件处理
+ * ================================================================ */
+
+/**
+ * @brief 图标点击事件 — 导航到对应子页面
+ */
+static void on_icon_click(lv_event_t *e)
+{
+    const char *target = (const char *)lv_event_get_user_data(e);
+    page_manager_navigate(target, NULL);
+}
+
+/* ================================================================
+ *  构造/析构
+ * ================================================================ */
 
 static lv_obj_t *main_screen_create(base_screen_t *base);
 static void main_screen_destroy(base_screen_t *base);
@@ -25,41 +72,68 @@ void main_screen_init(main_screen_t *self)
 }
 
 /**
- * @brief 构建主菜单页面的控件树
- *
- * 控件树结构:
- *   screen (深灰背景)
- *     └── label "hello lvgl" (白色文字, 居中)
+ * @brief 创建图标项 (彩色方块 + 内部大字 + 底部标签)
+ */
+static lv_obj_t *create_icon(lv_obj_t *parent, const icon_entry_t *entry,
+                              int col, int row)
+{
+    int x = 20 + col * CELL_W + ICON_OFF_X;
+    int y = (row == 0) ? ROW1_Y : ROW2_Y;
+
+    /* 图标主体: 彩色圆角方块 */
+    lv_obj_t *icon = lv_obj_create(parent);
+    lv_obj_add_style(icon, entry->bg_style, LV_PART_MAIN);
+    lv_obj_set_pos(icon, x, y);
+    lv_obj_set_size(icon, ICON_SIZE, ICON_SIZE);
+
+    /* 添加点击事件 */
+    lv_obj_add_flag(icon, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(icon, on_icon_click, LV_EVENT_CLICKED,
+                        (void *)entry->target);
+
+    /* 图标内大字 (居中) */
+    lv_obj_t *char_label = lv_label_create(icon);
+    lv_label_set_text(char_label, entry->char_text);
+    lv_obj_add_style(char_label, style_icon_text, LV_PART_MAIN);
+    lv_obj_center(char_label);
+
+    /* 底部说明文字 */
+    lv_obj_t *desc = lv_label_create(parent);
+    lv_label_set_text(desc, entry->label);
+    lv_obj_set_style_text_color(desc, lv_color_hex(0xCCCCCC), LV_PART_MAIN);
+    lv_obj_set_style_text_align(desc, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+    lv_obj_set_pos(desc, x - 10, y + LABEL_OFF_Y);
+    lv_obj_set_width(desc, ICON_SIZE + 20);
+
+    return icon;
+}
+
+/**
+ * @brief 构建主菜单页面
  */
 static lv_obj_t *main_screen_create(base_screen_t *base)
 {
     main_screen_t *self = (main_screen_t *)base;
 
-    /* 创建空白 screen */
+    /* 创建空白 screen (深色背景) */
     self->base.screen = lv_obj_create(NULL);
-
-    /* 设置深灰背景 */
     lv_obj_set_style_bg_color(self->base.screen,
-                              lv_color_hex(0x202020), LV_PART_MAIN);
+                              lv_color_hex(0x1A1A2E), LV_PART_MAIN);
 
-    /* 创建居中标签 "hello lvgl" */
-    self->label = lv_label_create(self->base.screen);
-    lv_label_set_text(self->label, "hello lvgl");
-    lv_obj_set_style_text_color(self->label,
-                                lv_color_hex(0xFFFFFF), LV_PART_MAIN);
-    lv_obj_set_style_text_font(self->label,
-                               &lv_font_montserrat_14, LV_PART_MAIN);
-    lv_obj_center(self->label);
+    /* 关联背景样式到 g_icons */
+    g_icons[0].bg_style = style_icon_blue;
+    g_icons[1].bg_style = style_icon_green;
+    g_icons[2].bg_style = style_icon_orange;
 
-    /* 加载为当前活动屏幕 */
+    /* 创建图标: 第一行 col 0,1,2 */
+    for (int i = 0; i < (int)ICON_COUNT; i++) {
+        create_icon(self->base.screen, &g_icons[i], i % COLS, i / COLS);
+    }
+
     lv_scr_load(self->base.screen);
-
     return self->base.screen;
 }
 
-/**
- * @brief 销毁主菜单页面控件
- */
 static void main_screen_destroy(base_screen_t *base)
 {
     main_screen_t *self = (main_screen_t *)base;

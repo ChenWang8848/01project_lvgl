@@ -4,8 +4,6 @@
  *
  * 使用 LVGL style 对象定义颜色、字体、间距等视觉属性。
  * 页面通过引用这些全局 style 句柄实现统一的 UI 风格。
- *
- * 后续可扩展: 深色/浅色主题切换、字体大小预设、间距体系。
  */
 
 #ifndef STYLES_H
@@ -13,13 +11,21 @@
 
 #include "lvgl/lvgl.h"
 
-/** @brief 初始化全局样式 (创建 style 对象, 设置属性) */
 void styles_init(void);
 
-/** @brief 深色背景样式 (20-20-20) */
-extern lv_style_t *style_bg_dark;
+/* ---- 基础样式 ---- */
+extern lv_style_t *style_bg_dark;       /**< 深色背景 */
+extern lv_style_t *style_text_white;    /**< 白色文字 */
 
-/** @brief 白色文字样式 */
-extern lv_style_t *style_text_white;
+/* ---- 主界面图标样式 ---- */
+extern lv_style_t *style_icon_blue;     /**< 蓝色图标背景 (手动播放) */
+extern lv_style_t *style_icon_green;    /**< 绿色图标背景 (自动播放) */
+extern lv_style_t *style_icon_orange;   /**< 橙色图标背景 (设置) */
+extern lv_style_t *style_icon_text;     /**< 图标内白色大字 (28pt) */
+
+/* ---- 子页面标题栏样式 ---- */
+extern lv_style_t *style_title_bar;     /**< 标题栏背景 */
+extern lv_style_t *style_title_text;    /**< 标题文字 */
+extern lv_style_t *style_back_btn;      /**< 返回按钮 */
 
 #endif

@@ -72,8 +72,7 @@ static lvgl_display_t g_disp;    /**< LVGL 显示适配器 */
  */
 int app_controller_init(app_controller_t *self, int argc, char *argv[])
 {
-    (void)argc; (void)argv;
-
+    (void)argc; (void)argv; // 这种写法是消除未使用警告的常见做法
     debug_init();
     LOG_INFO("app_controller_init: starting...");
 
