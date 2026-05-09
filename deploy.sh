@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # 定义变量
-EXEC_FILE="build/demo"
+EXEC_FILE="build/digitpic"
 REMOTE_USER="root"
 REMOTE_HOST="192.168.1.4"
 REMOTE_PATH="/home/root"

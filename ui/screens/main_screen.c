@@ -31,16 +31,24 @@
  * ================================================================ */
 typedef struct {
     const char   *char_text;    /* 图标内大字 */
-    lv_style_t   *bg_style;    /* 背景样式 */
     const char   *label;       /* 底部标签 */
     const char   *target;      /* 目标页面名称 */
 } icon_entry_t;
 
 static const icon_entry_t g_icons[] = {
-    { "手", NULL, "手动播放", "manual"  },
-    { "自", NULL, "自动播放", "auto"    },
-    { "设", NULL, "设置",    "setting" },
+    { "手", "手动播放", "manual"  },
+    { "自", "自动播放", "auto"    },
+    { "设", "设置",    "setting" },
 };
+
+/** @brief 根据目标页面名返回对应的图标背景样式 */
+static lv_style_t *get_icon_style(const char *target)
+{
+    if (strcmp(target, "manual")  == 0) return style_icon_blue;
+    if (strcmp(target, "auto")    == 0) return style_icon_green;
+    if (strcmp(target, "setting") == 0) return style_icon_orange;
+    return style_icon_blue; /* 兜底 */
+}
 #define ICON_COUNT (sizeof(g_icons) / sizeof(g_icons[0]))
 
 /* ================================================================
@@ -82,7 +90,7 @@ static lv_obj_t *create_icon(lv_obj_t *parent, const icon_entry_t *entry,
 
     /* 图标主体: 彩色圆角方块 */
     lv_obj_t *icon = lv_obj_create(parent);
-    lv_obj_add_style(icon, entry->bg_style, LV_PART_MAIN);
+    lv_obj_add_style(icon, get_icon_style(entry->target), LV_PART_MAIN);
     lv_obj_set_pos(icon, x, y);
     lv_obj_set_size(icon, ICON_SIZE, ICON_SIZE);
 
@@ -119,11 +127,6 @@ static lv_obj_t *main_screen_create(base_screen_t *base)
     self->base.screen = lv_obj_create(NULL);
     lv_obj_set_style_bg_color(self->base.screen,
                               lv_color_hex(0x1A1A2E), LV_PART_MAIN);
-
-    /* 关联背景样式到 g_icons */
-    g_icons[0].bg_style = style_icon_blue;
-    g_icons[1].bg_style = style_icon_green;
-    g_icons[2].bg_style = style_icon_orange;
 
     /* 创建图标: 第一行 col 0,1,2 */
     for (int i = 0; i < (int)ICON_COUNT; i++) {
