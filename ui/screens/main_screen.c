@@ -36,9 +36,9 @@ typedef struct {
 } icon_entry_t;
 
 static const icon_entry_t g_icons[] = {
-    { "手", "手动播放", "manual"  },
-    { "自", "自动播放", "auto"    },
-    { "设", "设置",    "setting" },
+    { LV_SYMBOL_IMAGE,    "手动播放", "manual"  },
+    { LV_SYMBOL_PLAY,     "自动播放", "auto"    },
+    { LV_SYMBOL_SETTINGS, "设置",    "setting" },
 };
 
 /** @brief 根据目标页面名返回对应的图标背景样式 */

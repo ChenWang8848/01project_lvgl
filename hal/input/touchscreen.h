@@ -1,9 +1,6 @@
 /**
  * @file    touchscreen.h
- * @brief   触摸屏驱动 — input_driver_t 的具体实现 (tslib / evdev)
- *
- * Phase 3 将实现完整的触摸屏读取逻辑。
- * 当前为桩代码 (stub)，返回无数据。
+ * @brief   触摸屏驱动 — evdev 实现 (input_driver_t 子类)
  */
 
 #ifndef TOUCHSCREEN_H
@@ -13,7 +10,11 @@
 
 typedef struct {
     input_driver_t base;        /**< 父类 (vtable) */
-    int fd;                     /**< 触摸屏设备文件描述符 */
+    int         fd;             /**< 触摸屏设备文件描述符 */
+    const char *dev_path;       /**< 设备路径 */
+    int         last_x;         /**< 当前 X 坐标 */
+    int         last_y;         /**< 当前 Y 坐标 */
+    int         last_pressed;   /**< 当前按下状态 (LV_INDEV_STATE_PR / REL) */
 } touchscreen_t;
 
 /**
