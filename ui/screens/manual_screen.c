@@ -55,13 +55,6 @@ static void get_parent_path(const char *path, char *out, int out_sz)
     }
 }
 
-/** @brief 获取文件扩展名 */
-static const char *get_ext(const char *name)
-{
-    const char *dot = strrchr(name, '.');
-    return dot ? dot : "";
-}
-
 /* ================================================================
  *  事件处理
  * ================================================================ */
@@ -69,6 +62,7 @@ static void on_exit_click(lv_event_t *e);
 static void on_back_click(lv_event_t *e);
 static void on_prev_click(lv_event_t *e);
 static void on_next_click(lv_event_t *e);
+static void on_grid_item_click(lv_event_t *e);
 
 /* ================================================================
  *  前向声明
