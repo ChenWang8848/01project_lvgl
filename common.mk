@@ -33,7 +33,8 @@ INCLUDES := \
 	-I$(TOP_DIR)/util \
 	-I$(TOP_DIR) \
 	-I$(LVGL_DIR)/lvgl \
-	-I$(LVGL_DIR)/lv_drivers
+	-I$(LVGL_DIR)/lv_drivers \
+	-I/usr/local/freetype-arm/include/freetype2
 
 # --- 编译选项 ---
 # -std=c99: 使用 C99 标准 (兼容 LVGL 源码)

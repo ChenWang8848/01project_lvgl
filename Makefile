@@ -56,7 +56,8 @@ MAIN_OBJ := $(BUILD_DIR)/main.o
 
 # --- 编译/链接选项 ---
 CFLAGS  += -I$(TOP_DIR)
-LDFLAGS := -lm -lpthread
+LDFLAGS := -lm -lpthread -L/usr/local/freetype-arm/lib -lfreetype
+
 
 .PHONY: all clean
 

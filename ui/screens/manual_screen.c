@@ -59,10 +59,10 @@ static lv_obj_t *manual_screen_create(base_screen_t *base)
     lv_obj_add_event_cb(self->back_btn, on_back_click, LV_EVENT_CLICKED, NULL);
     lv_obj_t *btn_label = lv_label_create(self->back_btn);
     lv_label_set_text(btn_label, "← 返回");
-    lv_obj_set_style_text_color(btn_label, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
+    lv_obj_add_style(btn_label, style_back_label, LV_PART_MAIN);
     lv_obj_center(btn_label);
 
-    /* 标题文字 */
+    /* 标题文字 (FreeType 中文字体) */
     self->title_label = lv_label_create(self->title_bar);
     lv_label_set_text(self->title_label, "手动播放");
     lv_obj_add_style(self->title_label, style_title_text, LV_PART_MAIN);

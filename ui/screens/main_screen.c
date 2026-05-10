@@ -105,11 +105,10 @@ static lv_obj_t *create_icon(lv_obj_t *parent, const icon_entry_t *entry,
     lv_obj_add_style(char_label, style_icon_text, LV_PART_MAIN);
     lv_obj_center(char_label);
 
-    /* 底部说明文字 */
+    /* 底部中文说明文字 (FreeType 字体) */
     lv_obj_t *desc = lv_label_create(parent);
     lv_label_set_text(desc, entry->label);
-    lv_obj_set_style_text_color(desc, lv_color_hex(0xCCCCCC), LV_PART_MAIN);
-    lv_obj_set_style_text_align(desc, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+    lv_obj_add_style(desc, style_label_cn, LV_PART_MAIN);
     lv_obj_set_pos(desc, x - 10, y + LABEL_OFF_Y);
     lv_obj_set_width(desc, ICON_SIZE + 20);
 
