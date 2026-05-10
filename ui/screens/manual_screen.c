@@ -194,7 +194,9 @@ static void on_back_click(lv_event_t *e)
 {
     manual_screen_t *s = (manual_screen_t *)lv_event_get_user_data(e);
     if (strcmp(s->cur_path, "/") == 0) return;
-    get_parent_path(s->cur_path, s->cur_path, sizeof(s->cur_path));
+    char new_path[512];
+    get_parent_path(s->cur_path, new_path, sizeof(new_path));
+    snprintf(s->cur_path, sizeof(s->cur_path), "%s", new_path);
     load_directory(s);
 }
 
@@ -281,6 +283,7 @@ static lv_obj_t *manual_screen_create(base_screen_t *base)
 
     create_sidebar(self);
     create_grid_container(self);
+    lv_obj_move_foreground(self->sidebar); /* 确保侧边栏在最前 */
     load_directory(self);
     lv_scr_load(self->base.screen);
     return self->base.screen;
