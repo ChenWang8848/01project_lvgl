@@ -7,6 +7,7 @@
 
 #include "styles.h"
 #include "config/config.h"
+#include <stdio.h>
 #include <stdlib.h>
 
 #if LV_USE_FREETYPE
@@ -49,6 +50,16 @@ lv_style_t *style_back_label = NULL;
 static lv_font_t *create_freetype_font(const char *path, uint16_t weight)
 {
 #if LV_USE_FREETYPE
+    /* 检查字体文件是否存在 */
+    FILE *fp = fopen(path, "rb");
+    if (!fp) {
+        printf("[ERROR] 字体文件不存在: %s\n", path);
+        printf("[INFO]  请将中文字体文件 (.ttf/.ttc) 放到该路径,\n"
+               "        或修改 config/config.h 中的 FREETYPE_FONT_PATH\n");
+        return NULL;
+    }
+    fclose(fp);
+
     lv_ft_info_t *info = malloc(sizeof(lv_ft_info_t));
     memset(info, 0, sizeof(*info));
     info->name   = path;
@@ -56,9 +67,11 @@ static lv_font_t *create_freetype_font(const char *path, uint16_t weight)
     info->style  = FT_FONT_STYLE_NORMAL;
 
     if (!lv_ft_font_init(info)) {
+        printf("[ERROR] FreeType 字体加载失败: %s (size=%d)\n", path, weight);
         free(info);
         return NULL;
     }
+    printf("[INFO]  FreeType 字体加载成功: %s (size=%d)\n", path, weight);
     return info->font;
 #else
     (void)path;

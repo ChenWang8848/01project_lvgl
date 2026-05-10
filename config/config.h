@@ -33,7 +33,7 @@
  *  字体
  * ================================================================ */
 /** FreeType 中文字体路径 (需为 TTF/TTC 格式, 支持 CJK) */
-#define FREETYPE_FONT_PATH "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc"
+#define FREETYPE_FONT_PATH "/usr/share/fonts/lvlgfont/MSYH.TTF"
 
 /* ================================================================
  *  调试开关
