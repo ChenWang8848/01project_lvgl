@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <errno.h>
 #include <sys/types.h>
 #include <dirent.h>
 #include <sys/stat.h>
@@ -97,7 +98,8 @@ int file_list_dir(const char *path, dir_entry_t *entries, int max_entries)
 {
     DIR *dir = opendir(path);
     if (!dir) {
-        perror("file_list_dir: opendir");
+        fprintf(stderr, "file_list_dir: opendir(%s) failed: %s\n",
+                path, strerror(errno));
         return -1;
     }
 
