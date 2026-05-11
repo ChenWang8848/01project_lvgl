@@ -12,7 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define SIDEBAR_W   80
+#define SIDEBAR_W   120
 #define GRID_X      SIDEBAR_W
 #define GRID_W      (800 - SIDEBAR_W)
 #define COLS        4
