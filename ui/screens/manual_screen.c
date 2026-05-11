@@ -22,7 +22,7 @@
 #define CELL_H      105
 #define ICON_OFF_X  ((CELL_W - ICON_SIZE) / 2)
 #define GRID_TOP    95
-#define BTN_W       72
+#define BTN_W       (SIDEBAR_W - 8)
 #define BTN_H       78
 #define BTN_SPACE   ((424 - 4 * BTN_H) / 5)
 #define BTN_FIRST_Y (56 + BTN_SPACE)
@@ -290,10 +290,12 @@ static lv_obj_t *manual_screen_create(base_screen_t *base)
     lv_label_set_text(self->path_label, "/");
     lv_obj_set_style_text_color(self->path_label, lv_color_hex(0x5A4A3A), LV_PART_MAIN);
     if (font_cjk_16) lv_obj_set_style_text_font(self->path_label, font_cjk_16, LV_PART_MAIN);
-    lv_obj_set_pos(self->path_label, 10, 16);
+    lv_obj_set_pos(self->path_label, SIDEBAR_W + 4, 16);
+    lv_obj_set_width(self->path_label, 800 - SIDEBAR_W - 8);
+    lv_label_set_long_mode(self->path_label, LV_LABEL_LONG_DOT);
 
-    create_sidebar(self);
     create_grid_container(self);
+    create_sidebar(self);
     lv_obj_move_foreground(self->sidebar); /* 确保侧边栏在最前 */
     load_directory(self);
     lv_scr_load(self->base.screen);
