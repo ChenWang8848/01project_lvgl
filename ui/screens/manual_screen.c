@@ -8,6 +8,7 @@
 #include "app/page_manager.h"
 #include "ui/styles.h"
 #include "ui/screens/text_screen.h"
+#include "ui/screens/auto_screen.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -234,8 +235,28 @@ static void on_grid_item_click(lv_event_t *e)
                 load_directory(s);
             } else {
                 switch (ent->type) {
-                    case FILE_TYPE_IMAGE:
-                        printf("[INFO] 打开图片: %s/%s\n", s->cur_path, ent->name); break;
+                    case FILE_TYPE_IMAGE: {
+                        /* 收集当前目录所有图片 */
+                        char img_list[MAX_DIR_ENTRIES][512];
+                        int img_count = 0;
+                        int focus = 0;
+                        for (int j = 0; j < s->total_entries && img_count < MAX_DIR_ENTRIES; j++) {
+                            if (s->entries[j].type == FILE_TYPE_IMAGE) {
+                                if (strcmp(s->cur_path, "/") == 0)
+                                    snprintf(img_list[img_count], 512, "/%s", s->entries[j].name);
+                                else
+                                    snprintf(img_list[img_count], 512, "%s/%s", s->cur_path, s->entries[j].name);
+                                if (&s->entries[j] == ent) focus = img_count;
+                                img_count++;
+                            }
+                        }
+                        if (g_auto_screen && img_count > 0) {
+                            auto_screen_open_images(g_auto_screen,
+                                (const char(*)[512])img_list, img_count, focus);
+                            page_manager_navigate("auto", NULL);
+                        }
+                        break;
+                    }
                     case FILE_TYPE_MUSIC:
                         printf("[INFO] 播放音乐: %s/%s\n", s->cur_path, ent->name); break;
                     case FILE_TYPE_TEXT: {

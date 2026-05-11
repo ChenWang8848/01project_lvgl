@@ -79,6 +79,17 @@ int app_controller_init(app_controller_t *self, int argc, char *argv[])
     /* --- 1. LVGL 核心初始化 --- */
     lv_init();
 
+    /* 1a. 图片解码器 + 文件系统驱动 */
+#if LV_USE_FS_POSIX
+    lv_fs_posix_init();
+#endif
+#if LV_USE_PNG
+    lv_png_init();
+#endif
+#if LV_USE_BMP
+    lv_bmp_init();
+#endif
+
     /* --- 2. HAL — 显示 --- */
     fb_driver_init(&g_fb, "/dev/fb0");
     if (g_fb.base.init(&g_fb.base) != 0) {
@@ -134,7 +145,7 @@ int app_controller_init(app_controller_t *self, int argc, char *argv[])
     page_manager_register(&scr_text.base);
     page_manager_register(&scr_music.base);
 
-    /* 加载主菜单页面 (显示 "hello lvgl") */
+    /* 加载主菜单页面  */
     page_manager_navigate("main", NULL);
 
     self->initialized = 1;
