@@ -45,6 +45,14 @@ void file_unmap(file_map_t *map);
 int  file_list_dir(const char *path, dir_entry_t *entries, int max_entries);
 
 /**
+ * @brief 读取文本文件全部内容到 malloc 缓冲区
+ * @param path  文件路径
+ * @param out_len [out] 文件长度 (不含末尾\0), 可为 NULL
+ * @return malloc 分配的字符串 (调用者需 free), 失败返回 NULL
+ */
+char *file_read_text(const char *path, size_t *out_len);
+
+/**
  * @brief 根据扩展名判断文件类型
  */
 file_type_t file_get_type(const char *name);

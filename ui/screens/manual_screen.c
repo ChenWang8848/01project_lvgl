@@ -7,6 +7,7 @@
 #include "manual_screen.h"
 #include "app/page_manager.h"
 #include "ui/styles.h"
+#include "ui/screens/text_screen.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -237,8 +238,18 @@ static void on_grid_item_click(lv_event_t *e)
                         printf("[INFO] 打开图片: %s/%s\n", s->cur_path, ent->name); break;
                     case FILE_TYPE_MUSIC:
                         printf("[INFO] 播放音乐: %s/%s\n", s->cur_path, ent->name); break;
-                    case FILE_TYPE_TEXT:
-                        printf("[INFO] 打开文本: %s/%s\n", s->cur_path, ent->name); break;
+                    case FILE_TYPE_TEXT: {
+                        char fp[512];
+                        if (strcmp(s->cur_path, "/") == 0)
+                            snprintf(fp, sizeof(fp), "/%s", ent->name);
+                        else
+                            snprintf(fp, sizeof(fp), "%s/%s", s->cur_path, ent->name);
+                        if (g_text_screen) {
+                            text_screen_set_path(g_text_screen, fp);
+                            page_manager_navigate("text", NULL);
+                        }
+                        break;
+                    }
                     default: break;
                 }
             }

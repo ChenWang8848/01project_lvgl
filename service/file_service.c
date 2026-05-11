@@ -137,6 +137,38 @@ int file_list_dir(const char *path, dir_entry_t *entries, int max_entries)
 }
 
 /* ================================================================
+ *  读取文本文件
+ * ================================================================ */
+char *file_read_text(const char *path, size_t *out_len)
+{
+    FILE *fp = fopen(path, "rb");
+    if (!fp) {
+        fprintf(stderr, "file_read_text: fopen(%s) failed: %s\n",
+                path, strerror(errno));
+        return NULL;
+    }
+
+    /* 获取文件大小 */
+    fseek(fp, 0, SEEK_END);
+    long fsize = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
+    if (fsize <= 0) { fclose(fp); return NULL; }
+
+    /* 分配缓冲区 (+1 for null terminator) */
+    char *buf = malloc(fsize + 1);
+    if (!buf) { fclose(fp); return NULL; }
+
+    size_t nread = fread(buf, 1, fsize, fp);
+    fclose(fp);
+
+    if (nread <= 0) { free(buf); return NULL; }
+
+    buf[nread] = '\0';
+    if (out_len) *out_len = nread;
+    return buf;
+}
+
+/* ================================================================
  *  单例初始化 / mmap 文件映射 (暂未实现)
  * ================================================================ */
 
