@@ -38,4 +38,4 @@ INCLUDES := \
 
 # --- 编译选项 ---
 # -std=c99: 使用 C99 标准 (兼容 LVGL 源码)
-CFLAGS := -Wall -O2 -g -std=c99 $(INCLUDES)
+CFLAGS := -Wall -O2 -g -std=gnu99 -D_DEFAULT_SOURCE $(INCLUDES)
