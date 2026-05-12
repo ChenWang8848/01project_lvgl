@@ -26,7 +26,7 @@ static void on_next_click(lv_event_t *e);
 
 /* ---- 辅助 ---- */
 static const char *base_name(const char *path)
-{ const char *p = strrchr(path, '/'); return p ? p + 1 : path; }
+{ const char *p = strrchr(path, '/'); return p ? p + 1 : path; } 
 
 /* ================================================================
  *  预加载线程
@@ -43,7 +43,6 @@ static void *preload_worker(void *arg)
         free(path);
         return NULL; /* 已有, 跳过 */
     }
-
     /* 读文件 */
     FILE *fp = fopen(path, "rb");
     if (!fp) { free(path); return NULL; }
@@ -121,26 +120,33 @@ static void show_current(auto_screen_t *self)
     struct timeval t1, t2;
     gettimeofday(&t1, NULL);
 
-    /* 1. 查询预加载缓存 */
+    /* 1. 查询预加载缓存, 构造 fs 路径 */
+    char fs_path[520];
     uint32_t cw, ch;
     uint8_t *cached = image_cache_lookup(path, &cw, &ch);
     if (cached && cached[0]) {
-        /* 缓存命中: 加载预存临时文件 */
-        char fs_path[520];
         snprintf(fs_path, sizeof(fs_path), "S:%s", (char *)cached);
-        lv_img_set_src(self->img_obj, fs_path);
     } else {
-        /* 缓存未命中: 同步加载 */
-        char fs_path[520];
         snprintf(fs_path, sizeof(fs_path), "S:%s", path);
-        lv_img_set_src(self->img_obj, fs_path);
+    }
+    lv_img_set_src(self->img_obj, fs_path);
+
+    /* 缩放适配: 获取图像真实尺寸, 等比缩放至 780 x 370 内 */
+    lv_img_header_t header;
+    if (lv_img_decoder_get_info(fs_path, &header) == LV_RES_OK
+        && header.w > 0 && header.h > 0) {
+        uint16_t zoom_x = (780 * 256) / header.w;
+        uint16_t zoom_y = (370 * 256) / header.h;
+        uint16_t zoom = (zoom_x < zoom_y) ? zoom_x : zoom_y;
+        if (zoom > 256) zoom = 256;
+        lv_img_set_zoom(self->img_obj, zoom);
     }
 
     gettimeofday(&t2, NULL);
-    long ms = (t2.tv_sec - t1.tv_sec) * 1000
-            + (t2.tv_usec - t1.tv_usec) / 1000;
-    printf("[预加载] %s → %ld ms %s\n",
-           base_name(path), ms,
+    long us = (t2.tv_sec - t1.tv_sec) * 1000000
+            + (t2.tv_usec - t1.tv_usec);
+    printf("[预加载] %s → %.3f ms %s\n",
+           base_name(path), us / 1000.0,
            (cached && cached[0]) ? "(缓存命中)" : "(同步解码)");
 
     /* 更新 UI */
@@ -235,6 +241,7 @@ static lv_obj_t *auto_screen_create(base_screen_t *base)
     lv_obj_set_style_bg_color(self->img_obj, lv_color_hex(0x3D3222), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(self->img_obj, LV_OPA_30, LV_PART_MAIN);
     lv_obj_set_style_radius(self->img_obj, 8, LV_PART_MAIN);
+    lv_img_set_size_mode(self->img_obj, LV_IMG_SIZE_MODE_REAL);
 
     /* 底栏 */
     self->bottom_bar = lv_obj_create(self->base.screen);
