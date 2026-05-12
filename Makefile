@@ -37,6 +37,7 @@ OUR_SRCS := \
 	hal/input/touchscreen.c hal/input/mouse.c hal/input/lvgl_input.c \
 	hal/audio/alsa_output.c hal/audio/mp3_decoder.c \
 	service/file_service.c service/music_service.c service/image_service.c \
+	service/image_cache.c \
 	ui/styles.c \
 	ui/screens/main_screen.c ui/screens/browse_screen.c \
 	ui/screens/manual_screen.c ui/screens/auto_screen.c \

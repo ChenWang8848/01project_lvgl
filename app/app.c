@@ -30,6 +30,7 @@
 #include "service/file_service.h"
 #include "service/music_service.h"
 #include "service/image_service.h"
+#include "service/image_cache.h"
 
 /* ================================================================
  *  UI 层
@@ -109,6 +110,7 @@ int app_controller_init(app_controller_t *self, int argc, char *argv[])
     file_service_init();
     music_service_init();
     image_service_init();
+    image_cache_init();
 
     /* --- 5. UI — 全局样式 --- */
     styles_init();
