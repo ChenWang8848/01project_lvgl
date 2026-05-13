@@ -62,7 +62,7 @@ static void *preload_worker(void *arg)
     uint8_t px_size = lv_img_cf_get_px_size(header.cf) >> 3;
     if (px_size == 0) px_size = 4;
     uint32_t data_size = (uint32_t)header.w * header.h * px_size;
-    if (data_size > 8 * 1024 * 1024) {
+    if (data_size > 32 * 1024 * 1024) {  /* 大图不预加载, 回退同步解码 */
         pthread_mutex_unlock(&g_decode_mutex);
         free(path);
         return NULL;
@@ -84,22 +84,22 @@ static void *preload_worker(void *arg)
         return NULL;
     }
 
-    /* open 后 dsc.header.cf 才是解码后的真实格式 (TRUE_COLOR_ALPHA 等) */
+    /* open 后 dsc.header.w/h 为解码后真实尺寸, 但 cf 仍是 info 阶段设的 RAW 标记.
+     * 像素已按系统色深转换, 直接按 4 字节/像素拷贝. */
     uint8_t real_px = lv_img_cf_get_px_size(dsc.header.cf) >> 3;
     if (real_px == 0) real_px = 4;
     uint32_t real_size = (uint32_t)dsc.header.w * dsc.header.h * real_px;
 
-    /* 如果实际尺寸与预估不同, 重新分配 */
     if (real_size != data_size) {
-        uint8_t *new_px = realloc(pixels, real_size);
-        if (!new_px) {
+        /* 解码后尺寸与预估不同, 重新分配 */
+        free(pixels);
+        pixels = malloc(real_size);
+        if (!pixels) {
             lv_img_decoder_close(&dsc);
             pthread_mutex_unlock(&g_decode_mutex);
-            free(pixels);
             free(path);
             return NULL;
         }
-        pixels = new_px;
         data_size = real_size;
         px_size = real_px;
     }
@@ -116,12 +116,58 @@ static void *preload_worker(void *arg)
         }
     }
 
-    /* 解码器 info_cb 返回的是 RAW 格式标记(如 LV_IMG_CF_RAW_ALPHA=2),
-     * 但像素已被解码为系统原生格式。强制设为 TRUE_COLOR_ALPHA,
-     * 让 .bin 内置解码器可识别 (要求 cf 4~14)。 */
-    lv_img_header_t real_header;
-    real_header.w = dsc.header.w;
-    real_header.h = dsc.header.h;
+    /* 计算目标尺寸: 等比缩放至 780×370 内, 不放大 */
+    uint32_t tw = dsc.header.w;
+    uint32_t th = dsc.header.h;
+    if (tw > 780 || th > 370) {
+        uint32_t zw = (780 * 256) / tw;
+        uint32_t zh = (370 * 256) / th;
+        uint32_t z = (zw < zh) ? zw : zh;
+        tw = (tw * z) >> 8;
+        th = (th * z) >> 8;
+    }
+
+    /* 降采样到目标尺寸 (box filter) */
+    if (tw != (uint32_t)dsc.header.w || th != (uint32_t)dsc.header.h) {
+        uint32_t scaled_size = tw * th * px_size;
+        uint8_t *scaled = malloc(scaled_size);
+        if (scaled) {
+            for (uint32_t dy = 0; dy < th; dy++) {
+                uint32_t sy0 = dy * dsc.header.h / th;
+                uint32_t sy1 = (dy + 1) * dsc.header.h / th;
+                for (uint32_t dx = 0; dx < tw; dx++) {
+                    uint32_t sx0 = dx * dsc.header.w / tw;
+                    uint32_t sx1 = (dx + 1) * dsc.header.w / tw;
+                    uint32_t r = 0, g = 0, b = 0, a = 0, cnt = 0;
+                    for (uint32_t sy = sy0; sy < sy1; sy++) {
+                        const uint8_t *row = pixels + sy * dsc.header.w * px_size;
+                        for (uint32_t sx = sx0; sx < sx1; sx++) {
+                            const uint8_t *p = row + sx * px_size;
+                            r += p[0]; g += p[1]; b += p[2]; a += p[3];
+                            cnt++;
+                        }
+                    }
+                    uint8_t *d = scaled + (dy * tw + dx) * px_size;
+                    d[0] = (uint8_t)(r / cnt);
+                    d[1] = (uint8_t)(g / cnt);
+                    d[2] = (uint8_t)(b / cnt);
+                    d[3] = (uint8_t)(a / cnt);
+                }
+            }
+            free(pixels);
+            pixels = scaled;
+            data_size = scaled_size;
+        }
+    }
+
+    lv_img_decoder_close(&dsc);
+    pthread_mutex_unlock(&g_decode_mutex);
+
+    /* 强制设置 .bin 头: info 阶段 cf=RAW_ALPHA(2), 但像素已是原生 RGBA,
+     * 必须用 TRUE_COLOR_ALPHA 内置解码器才能识别 (要求 cf 4~14) */
+    lv_img_header_t real_header = {0};
+    real_header.w = (lv_coord_t)tw;
+    real_header.h = (lv_coord_t)th;
 #if LV_COLOR_DEPTH == 32
     real_header.cf = LV_IMG_CF_TRUE_COLOR_ALPHA;
 #else
@@ -129,10 +175,6 @@ static void *preload_worker(void *arg)
                      ? LV_IMG_CF_TRUE_COLOR_ALPHA
                      : LV_IMG_CF_TRUE_COLOR;
 #endif
-    real_header.always_zero = 0;
-
-    lv_img_decoder_close(&dsc);
-    pthread_mutex_unlock(&g_decode_mutex);
 
     char bin_path[256];
     snprintf(bin_path, sizeof(bin_path), "/tmp/lv_pre_%d.bin",
