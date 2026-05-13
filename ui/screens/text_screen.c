@@ -186,7 +186,7 @@ static lv_obj_t *text_screen_create(base_screen_t *base)
     lv_obj_set_style_border_width(self->title_bar, 0, LV_PART_MAIN);
     lv_obj_clear_flag(self->title_bar, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_pos(self->title_bar, 0, 0);
-    lv_obj_set_size(self->title_bar, 800, 56);
+    lv_obj_set_size(self->title_bar, 800, 80);
 
     self->back_btn = lv_btn_create(self->title_bar);
     lv_obj_set_style_bg_color(self->back_btn, lv_color_hex(0xC4B490), LV_PART_MAIN);
@@ -214,8 +214,8 @@ static lv_obj_t *text_screen_create(base_screen_t *base)
     lv_obj_set_style_bg_color(self->bottom_bar, lv_color_hex(0xD4C4A0), LV_PART_MAIN);
     lv_obj_set_style_border_width(self->bottom_bar, 0, LV_PART_MAIN);
     lv_obj_clear_flag(self->bottom_bar, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_set_pos(self->bottom_bar, 0, 436);
-    lv_obj_set_size(self->bottom_bar, 800, 44);
+    lv_obj_set_pos(self->bottom_bar, 0, 400);
+    lv_obj_set_size(self->bottom_bar, 800, 80);
 
     /* 上一页按钮 */
     self->btn_prev = lv_btn_create(self->bottom_bar);
@@ -258,8 +258,8 @@ static lv_obj_t *text_screen_create(base_screen_t *base)
 
     /* ---- 文本内容 (lv_label) ---- */
     self->text_label = lv_label_create(self->base.screen);
-    lv_obj_set_pos(self->text_label, 10, 62);
-    lv_obj_set_size(self->text_label, 780, 370);
+    lv_obj_set_pos(self->text_label, 10, 80);
+    lv_obj_set_size(self->text_label, 780, 300);
     lv_obj_set_style_text_color(self->text_label, lv_color_hex(0x3D3222), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(self->text_label, LV_OPA_TRANSP, LV_PART_MAIN);
     lv_label_set_long_mode(self->text_label, LV_LABEL_LONG_WRAP);

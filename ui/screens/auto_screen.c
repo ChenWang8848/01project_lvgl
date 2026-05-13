@@ -25,11 +25,11 @@ auto_screen_t *g_auto_screen = NULL;
 #define SCREEN_W        800
 #define SCREEN_H        480
 
-#define TITLE_BAR_H     56
-#define BOTTOM_BAR_H    44
+#define TITLE_BAR_H     70
+#define BOTTOM_BAR_H    50
 
 #define GAP_TITLE_IMG   6    /* 标题栏底 → 图片顶 */
-#define GAP_IMG_BOTTOM  4    /* 图片底 → 底栏顶 */
+#define GAP_IMG_BOTTOM  2    /* 图片底 → 底栏顶 */
 
 #define IMG_AREA_X      10
 #define IMG_AREA_Y      (TITLE_BAR_H + GAP_TITLE_IMG)
@@ -43,7 +43,7 @@ auto_screen_t *g_auto_screen = NULL;
 #define BACK_BTN_W      90
 #define BACK_BTN_H      40
 #define BACK_BTN_X      10
-#define BACK_BTN_Y      ((TITLE_BAR_H - BACK_BTN_H) / 2)
+#define BACK_BTN_Y      ((TITLE_BAR_H - BACK_BTN_H-10) / 2)
 #define BACK_BTN_R      10
 
 /* 标题文本 */
@@ -53,7 +53,7 @@ auto_screen_t *g_auto_screen = NULL;
 /* 上一张 / 下一张: 底栏内 */
 #define NAV_BTN_W       100
 #define NAV_BTN_H       (BOTTOM_BAR_H - 10)
-#define NAV_BTN_Y       5
+#define NAV_BTN_Y       -10
 #define NAV_BTN_R       8
 #define BTN_PREV_X      160
 #define BTN_NEXT_X      (SCREEN_W - BTN_PREV_X - NAV_BTN_W)
