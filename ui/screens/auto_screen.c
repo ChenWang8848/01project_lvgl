@@ -145,14 +145,13 @@ static void show_current(auto_screen_t *self)
     uint32_t img_w = 0, img_h = 0;
 
     if (cached_px) {
-        /* 缓存命中: 直接用已解码像素构造 lv_img_dsc_t, 零解码开销 */
-        lv_img_dsc_t img_dsc;
-        img_dsc.header.cf = cf;
-        img_dsc.header.w = (lv_coord_t)cw;
-        img_dsc.header.h = (lv_coord_t)ch;
-        img_dsc.data      = cached_px;
-        img_dsc.data_size = cw * ch * (lv_img_cf_get_px_size(cf) >> 3);
-        lv_img_set_src(self->img_obj, &img_dsc);
+        /* 缓存命中: 用已解码像素填充持久 lv_img_dsc_t, 零解码开销 */
+        self->cached_dsc.header.cf = cf;
+        self->cached_dsc.header.w = (lv_coord_t)cw;
+        self->cached_dsc.header.h = (lv_coord_t)ch;
+        self->cached_dsc.data      = cached_px;
+        self->cached_dsc.data_size = cw * ch * (lv_img_cf_get_px_size(cf) >> 3);
+        lv_img_set_src(self->img_obj, &self->cached_dsc);
         img_w = cw;
         img_h = ch;
     } else {
