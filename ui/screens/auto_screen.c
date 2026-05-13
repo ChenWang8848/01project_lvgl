@@ -143,23 +143,6 @@ static void *preload_worker(void *arg)
         fwrite(pixels, 1, data_size, fbin);
         fclose(fbin);
     }
-    printf("[预加载线程] %s 解码完成 raw_cf=%u → bin_cf=%u w=%u h=%u size=%u → %s (fopen=%s)\n",
-           base_name(path), dsc.header.cf, real_header.cf,
-           real_header.w, real_header.h, data_size, bin_path,
-           fbin ? "ok" : "FAIL");
-    if (fbin) {
-        /* 回读 .bin 验证 */
-        FILE *fchk = fopen(bin_path, "rb");
-        if (fchk) {
-            lv_img_header_t chk_h;
-            size_t rd = fread(&chk_h, sizeof(chk_h), 1, fchk);
-            fseek(fchk, 0, SEEK_END);
-            long fsz = ftell(fchk);
-            fclose(fchk);
-            printf("[预加载线程] %s 回读验证 rd=%zu fsize=%ld hdr_cf=%u hdr_w=%u hdr_h=%u\n",
-                   base_name(path), rd, fsz, chk_h.cf, chk_h.w, chk_h.h);
-        }
-    }
     free(pixels);
 
     image_cache_put(path, (uint8_t *)strdup(bin_path),
@@ -214,21 +197,6 @@ static void show_current(auto_screen_t *self)
         /* 缓存命中: 加载预解码的 .bin 文件 (零格式解码, 直接读像素) */
         char fs_path[520];
         snprintf(fs_path, sizeof(fs_path), "S:%s", (char *)cached_px);
-        printf("[缓存命中] %s → %s cw=%u ch=%u cf=%u\n",
-               base_name(path), (char *)cached_px, cw, ch, cf);
-        /* 验证 .bin 文件存在且 header 正确 */
-        FILE *fchk = fopen((char *)cached_px, "rb");
-        if (fchk) {
-            lv_img_header_t hdr;
-            size_t rd = fread(&hdr, sizeof(hdr), 1, fchk);
-            fseek(fchk, 0, SEEK_END);
-            long fsz = ftell(fchk);
-            fclose(fchk);
-            printf("[缓存命中] 文件验证 rd=%zu fsize=%ld hdr_cf=%u hdr_w=%u hdr_h=%u\n",
-                   rd, fsz, hdr.cf, hdr.w, hdr.h);
-        } else {
-            printf("[缓存命中] 文件打开失败: %s\n", (char *)cached_px);
-        }
         lv_img_set_src(self->img_obj, fs_path);
         img_w = cw;
         img_h = ch;
@@ -236,7 +204,6 @@ static void show_current(auto_screen_t *self)
         /* 缓存未命中: 同步解码 */
         char fs_path[520];
         snprintf(fs_path, sizeof(fs_path), "S:%s", path);
-        printf("[同步] %s → %s\n", base_name(path), fs_path);
         lv_img_set_src(self->img_obj, fs_path);
 
         lv_img_header_t header;
