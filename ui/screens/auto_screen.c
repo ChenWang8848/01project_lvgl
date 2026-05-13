@@ -84,13 +84,18 @@ static void *preload_worker(void *arg)
         return NULL;
     }
 
-    /* 逐行读出像素 (兼容 BMP / PNG / 所有格式) */
-    uint8_t *dst = pixels;
-    for (uint32_t y = 0; y < header.h; y++) {
-        lv_res_t line_res = lv_img_decoder_read_line(&dsc, 0, (lv_coord_t)y,
-                                                      header.w, dst);
-        if (line_res != LV_RES_OK) break;
-        dst += header.w * px_size;
+    if (dsc.img_data) {
+        /* PNG 等解码器在 open 时已全量解码, 直接从 img_data 拷贝 */
+        memcpy(pixels, dsc.img_data, data_size);
+    } else {
+        /* BMP 等解码器需逐行 read_line */
+        uint8_t *dst = pixels;
+        for (uint32_t y = 0; y < header.h; y++) {
+            lv_res_t line_res = lv_img_decoder_read_line(&dsc, 0, (lv_coord_t)y,
+                                                          header.w, dst);
+            if (line_res != LV_RES_OK) break;
+            dst += header.w * px_size;
+        }
     }
 
     lv_img_decoder_close(&dsc);
