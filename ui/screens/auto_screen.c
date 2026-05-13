@@ -84,38 +84,59 @@ static void *preload_worker(void *arg)
         return NULL;
     }
 
+    /* open 后 dsc.header.cf 才是解码后的真实格式 (TRUE_COLOR_ALPHA 等) */
+    uint8_t real_px = lv_img_cf_get_px_size(dsc.header.cf) >> 3;
+    if (real_px == 0) real_px = 4;
+    uint32_t real_size = (uint32_t)dsc.header.w * dsc.header.h * real_px;
+
+    /* 如果实际尺寸与预估不同, 重新分配 */
+    if (real_size != data_size) {
+        uint8_t *new_px = realloc(pixels, real_size);
+        if (!new_px) {
+            lv_img_decoder_close(&dsc);
+            pthread_mutex_unlock(&g_decode_mutex);
+            free(pixels);
+            free(path);
+            return NULL;
+        }
+        pixels = new_px;
+        data_size = real_size;
+        px_size = real_px;
+    }
+
     if (dsc.img_data) {
         memcpy(pixels, dsc.img_data, data_size);
     } else {
         uint8_t *dst = pixels;
-        for (uint32_t y = 0; y < header.h; y++) {
+        for (uint32_t y = 0; y < dsc.header.h; y++) {
             lv_res_t line_res = lv_img_decoder_read_line(&dsc, 0, (lv_coord_t)y,
-                                                          header.w, dst);
+                                                          dsc.header.w, dst);
             if (line_res != LV_RES_OK) break;
-            dst += header.w * px_size;
+            dst += dsc.header.w * px_size;
         }
     }
 
+    /* 用解码后的真实 header 写 .bin */
+    lv_img_header_t real_header = dsc.header;
     lv_img_decoder_close(&dsc);
     pthread_mutex_unlock(&g_decode_mutex);
 
-    /* 写成 LVGL 原生 .bin 文件 (header + 像素), 后续加载零格式解码 */
     char bin_path[256];
     snprintf(bin_path, sizeof(bin_path), "/tmp/lv_pre_%d.bin",
              (int)(intptr_t)pthread_self());
     FILE *fbin = fopen(bin_path, "wb");
     if (fbin) {
-        fwrite(&header, sizeof(header), 1, fbin);
+        fwrite(&real_header, sizeof(real_header), 1, fbin);
         fwrite(pixels, 1, data_size, fbin);
         fclose(fbin);
     }
     free(pixels);
 
     printf("[预加载线程] %s 解码完成 w=%u h=%u cf=%u → %s\n",
-           base_name(path), header.w, header.h, header.cf, bin_path);
+           base_name(path), real_header.w, real_header.h, real_header.cf, bin_path);
 
-    /* 缓存存储 .bin 文件路径 */
-    image_cache_put(path, (uint8_t *)strdup(bin_path), header.w, header.h, (uint8_t)header.cf);
+    image_cache_put(path, (uint8_t *)strdup(bin_path),
+                    real_header.w, real_header.h, (uint8_t)real_header.cf);
     free(path);
     return NULL;
 }
