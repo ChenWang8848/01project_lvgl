@@ -19,6 +19,49 @@
 
 auto_screen_t *g_auto_screen = NULL;
 
+/* ================================================================
+ *  布局常量 (修改这些宏即可调整整体界面)
+ * ================================================================ */
+#define SCREEN_W        800
+#define SCREEN_H        480
+
+#define TITLE_BAR_H     56
+#define BOTTOM_BAR_H    44
+
+#define GAP_TITLE_IMG   6    /* 标题栏底 → 图片顶 */
+#define GAP_IMG_BOTTOM  4    /* 图片底 → 底栏顶 */
+
+#define IMG_AREA_X      10
+#define IMG_AREA_Y      (TITLE_BAR_H + GAP_TITLE_IMG)
+#define IMG_AREA_W      (SCREEN_W - IMG_AREA_X * 2)
+#define IMG_AREA_H      (SCREEN_H - TITLE_BAR_H - BOTTOM_BAR_H - GAP_TITLE_IMG - GAP_IMG_BOTTOM)
+#define IMG_RADIUS      8
+
+#define BOTTOM_BAR_Y    (SCREEN_H - BOTTOM_BAR_H)
+
+/* 返回按钮: 标题栏内 */
+#define BACK_BTN_W      90
+#define BACK_BTN_H      40
+#define BACK_BTN_X      10
+#define BACK_BTN_Y      ((TITLE_BAR_H - BACK_BTN_H) / 2)
+#define BACK_BTN_R      10
+
+/* 标题文本 */
+#define TITLE_LABEL_X   110
+#define TITLE_LABEL_Y   12
+
+/* 上一张 / 下一张: 底栏内 */
+#define NAV_BTN_W       100
+#define NAV_BTN_H       (BOTTOM_BAR_H - 10)
+#define NAV_BTN_Y       5
+#define NAV_BTN_R       8
+#define BTN_PREV_X      160
+#define BTN_NEXT_X      (SCREEN_W - BTN_PREV_X - NAV_BTN_W)
+
+/* 页码 */
+#define PAGE_LABEL_X    370
+#define PAGE_LABEL_Y    10
+
 /* ---- 事件 ---- */
 static void on_back_click(lv_event_t *e);
 static void on_prev_click(lv_event_t *e);
@@ -116,12 +159,12 @@ static void *preload_worker(void *arg)
         }
     }
 
-    /* 计算目标尺寸: 等比缩放至 780×370 内, 不放大 */
+    /* 计算目标尺寸: 等比缩放至图片容器内, 不放大 */
     uint32_t tw = dsc.header.w;
     uint32_t th = dsc.header.h;
-    if (tw > 780 || th > 370) {
-        uint32_t zw = (780 * 256) / tw;
-        uint32_t zh = (370 * 256) / th;
+    if (tw > IMG_AREA_W || th > IMG_AREA_H) {
+        uint32_t zw = (IMG_AREA_W * 256) / tw;
+        uint32_t zh = (IMG_AREA_H * 256) / th;
         uint32_t z = (zw < zh) ? zw : zh;
         tw = (tw * z) >> 8;
         th = (th * z) >> 8;
@@ -255,10 +298,10 @@ static void show_current(auto_screen_t *self)
         }
     }
 
-    /* 缩放适配: 等比缩放至 780 x 370 内 */
+    /* 缩放适配: 等比缩放至图片容器内 */
     if (img_w > 0 && img_h > 0) {
-        uint16_t zoom_x = (780 * 256) / img_w;
-        uint16_t zoom_y = (370 * 256) / img_h;
+        uint16_t zoom_x = (IMG_AREA_W * 256) / img_w;
+        uint16_t zoom_y = (IMG_AREA_H * 256) / img_h;
         uint16_t zoom = (zoom_x < zoom_y) ? zoom_x : zoom_y;
         if (zoom > 256) zoom = 256;
         lv_img_set_zoom(self->img_obj, zoom);
@@ -337,14 +380,14 @@ static lv_obj_t *auto_screen_create(base_screen_t *base)
     lv_obj_set_style_border_width(self->title_bar, 0, LV_PART_MAIN);
     lv_obj_clear_flag(self->title_bar, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_pos(self->title_bar, 0, 0);
-    lv_obj_set_size(self->title_bar, 800, 56);
+    lv_obj_set_size(self->title_bar, SCREEN_W, TITLE_BAR_H);
 
     self->back_btn = lv_btn_create(self->title_bar);
     lv_obj_set_style_bg_color(self->back_btn, lv_color_hex(0xC4B490), LV_PART_MAIN);
     lv_obj_set_style_border_width(self->back_btn, 0, LV_PART_MAIN);
-    lv_obj_set_style_radius(self->back_btn, 10, LV_PART_MAIN);
-    lv_obj_set_size(self->back_btn, 90, 40);
-    lv_obj_set_pos(self->back_btn, 10, 8);
+    lv_obj_set_style_radius(self->back_btn, BACK_BTN_R, LV_PART_MAIN);
+    lv_obj_set_size(self->back_btn, BACK_BTN_W, BACK_BTN_H);
+    lv_obj_set_pos(self->back_btn, BACK_BTN_X, BACK_BTN_Y);
     lv_obj_add_event_cb(self->back_btn, on_back_click, LV_EVENT_CLICKED, NULL);
     lv_obj_t *bl = lv_label_create(self->back_btn);
     lv_label_set_text(bl, "← 返回");
@@ -355,15 +398,15 @@ static lv_obj_t *auto_screen_create(base_screen_t *base)
     self->title_label = lv_label_create(self->title_bar);
     lv_obj_set_style_text_color(self->title_label, lv_color_hex(0x5A4A3A), LV_PART_MAIN);
     if (font_cjk_24) lv_obj_set_style_text_font(self->title_label, font_cjk_24, LV_PART_MAIN);
-    lv_obj_set_pos(self->title_label, 110, 12);
+    lv_obj_set_pos(self->title_label, TITLE_LABEL_X, TITLE_LABEL_Y);
 
-    /* 图片容器 (780×370, y=62) — 提供背景与圆角裁剪 */
+    /* 图片容器 — 提供背景与圆角裁剪 */
     self->img_container = lv_obj_create(self->base.screen);
-    lv_obj_set_pos(self->img_container, 10, 62);
-    lv_obj_set_size(self->img_container, 780, 370);
+    lv_obj_set_pos(self->img_container, IMG_AREA_X, IMG_AREA_Y);
+    lv_obj_set_size(self->img_container, IMG_AREA_W, IMG_AREA_H);
     lv_obj_set_style_bg_color(self->img_container, lv_color_hex(0x3D3222), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(self->img_container, LV_OPA_30, LV_PART_MAIN);
-    lv_obj_set_style_radius(self->img_container, 8, LV_PART_MAIN);
+    lv_obj_set_style_radius(self->img_container, IMG_RADIUS, LV_PART_MAIN);
     lv_obj_set_style_border_width(self->img_container, 0, LV_PART_MAIN);
     lv_obj_clear_flag(self->img_container, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_style_clip_corner(self->img_container, true, LV_PART_MAIN);
@@ -379,16 +422,16 @@ static lv_obj_t *auto_screen_create(base_screen_t *base)
     lv_obj_set_style_bg_color(self->bottom_bar, lv_color_hex(0xD4C4A0), LV_PART_MAIN);
     lv_obj_set_style_border_width(self->bottom_bar, 0, LV_PART_MAIN);
     lv_obj_clear_flag(self->bottom_bar, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_set_pos(self->bottom_bar, 0, 436);
-    lv_obj_set_size(self->bottom_bar, 800, 44);
+    lv_obj_set_pos(self->bottom_bar, 0, BOTTOM_BAR_Y);
+    lv_obj_set_size(self->bottom_bar, SCREEN_W, BOTTOM_BAR_H);
 
     /* 上一张 */
     self->btn_prev = lv_btn_create(self->bottom_bar);
     lv_obj_set_style_bg_color(self->btn_prev, lv_color_hex(0xC4B490), LV_PART_MAIN);
     lv_obj_set_style_border_width(self->btn_prev, 0, LV_PART_MAIN);
-    lv_obj_set_style_radius(self->btn_prev, 8, LV_PART_MAIN);
-    lv_obj_set_size(self->btn_prev, 100, 34);
-    lv_obj_set_pos(self->btn_prev, 160, 5);
+    lv_obj_set_style_radius(self->btn_prev, NAV_BTN_R, LV_PART_MAIN);
+    lv_obj_set_size(self->btn_prev, NAV_BTN_W, NAV_BTN_H);
+    lv_obj_set_pos(self->btn_prev, BTN_PREV_X, NAV_BTN_Y);
     lv_obj_add_event_cb(self->btn_prev, on_prev_click, LV_EVENT_CLICKED, self);
     lv_obj_t *pl = lv_label_create(self->btn_prev);
     lv_label_set_text(pl, "上一张");
@@ -400,9 +443,9 @@ static lv_obj_t *auto_screen_create(base_screen_t *base)
     self->btn_next = lv_btn_create(self->bottom_bar);
     lv_obj_set_style_bg_color(self->btn_next, lv_color_hex(0xC4B490), LV_PART_MAIN);
     lv_obj_set_style_border_width(self->btn_next, 0, LV_PART_MAIN);
-    lv_obj_set_style_radius(self->btn_next, 8, LV_PART_MAIN);
-    lv_obj_set_size(self->btn_next, 100, 34);
-    lv_obj_set_pos(self->btn_next, 540, 5);
+    lv_obj_set_style_radius(self->btn_next, NAV_BTN_R, LV_PART_MAIN);
+    lv_obj_set_size(self->btn_next, NAV_BTN_W, NAV_BTN_H);
+    lv_obj_set_pos(self->btn_next, BTN_NEXT_X, NAV_BTN_Y);
     lv_obj_add_event_cb(self->btn_next, on_next_click, LV_EVENT_CLICKED, self);
     lv_obj_t *nl = lv_label_create(self->btn_next);
     lv_label_set_text(nl, "下一张");
@@ -414,7 +457,7 @@ static lv_obj_t *auto_screen_create(base_screen_t *base)
     self->page_label = lv_label_create(self->bottom_bar);
     lv_obj_set_style_text_color(self->page_label, lv_color_hex(0x5A4A3A), LV_PART_MAIN);
     if (font_cjk_16) lv_obj_set_style_text_font(self->page_label, font_cjk_16, LV_PART_MAIN);
-    lv_obj_set_pos(self->page_label, 370, 10);
+    lv_obj_set_pos(self->page_label, PAGE_LABEL_X, PAGE_LABEL_Y);
 
     show_current(self);
     lv_scr_load(self->base.screen);
