@@ -85,10 +85,8 @@ static void *preload_worker(void *arg)
     }
 
     if (dsc.img_data) {
-        /* PNG 等解码器在 open 时已全量解码, 直接从 img_data 拷贝 */
         memcpy(pixels, dsc.img_data, data_size);
     } else {
-        /* BMP 等解码器需逐行 read_line */
         uint8_t *dst = pixels;
         for (uint32_t y = 0; y < header.h; y++) {
             lv_res_t line_res = lv_img_decoder_read_line(&dsc, 0, (lv_coord_t)y,
@@ -101,8 +99,23 @@ static void *preload_worker(void *arg)
     lv_img_decoder_close(&dsc);
     pthread_mutex_unlock(&g_decode_mutex);
 
-    /* 存入缓存 (缓存接管 pixels 所有权) */
-    image_cache_put(path, pixels, header.w, header.h, (uint8_t)header.cf);
+    /* 写成 LVGL 原生 .bin 文件 (header + 像素), 后续加载零格式解码 */
+    char bin_path[256];
+    snprintf(bin_path, sizeof(bin_path), "/tmp/lv_pre_%d.bin",
+             (int)(intptr_t)pthread_self());
+    FILE *fbin = fopen(bin_path, "wb");
+    if (fbin) {
+        fwrite(&header, sizeof(header), 1, fbin);
+        fwrite(pixels, 1, data_size, fbin);
+        fclose(fbin);
+    }
+    free(pixels);
+
+    printf("[预加载线程] %s 解码完成 w=%u h=%u cf=%u → %s\n",
+           base_name(path), header.w, header.h, header.cf, bin_path);
+
+    /* 缓存存储 .bin 文件路径 */
+    image_cache_put(path, (uint8_t *)strdup(bin_path), header.w, header.h, (uint8_t)header.cf);
     free(path);
     return NULL;
 }
@@ -150,13 +163,10 @@ static void show_current(auto_screen_t *self)
     uint32_t img_w = 0, img_h = 0;
 
     if (cached_px) {
-        /* 缓存命中: 用已解码像素填充持久 lv_img_dsc_t, 零解码开销 */
-        self->cached_dsc.header.cf = cf;
-        self->cached_dsc.header.w = (lv_coord_t)cw;
-        self->cached_dsc.header.h = (lv_coord_t)ch;
-        self->cached_dsc.data      = cached_px;
-        self->cached_dsc.data_size = cw * ch * (lv_img_cf_get_px_size(cf) >> 3);
-        lv_img_set_src(self->img_obj, &self->cached_dsc);
+        /* 缓存命中: 加载预解码的 .bin 文件 (零格式解码, 直接读像素) */
+        char fs_path[520];
+        snprintf(fs_path, sizeof(fs_path), "S:%s", (char *)cached_px);
+        lv_img_set_src(self->img_obj, fs_path);
         img_w = cw;
         img_h = ch;
     } else {

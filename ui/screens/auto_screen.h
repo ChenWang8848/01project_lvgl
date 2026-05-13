@@ -14,7 +14,6 @@ typedef struct {
     lv_obj_t *bottom_bar, *btn_prev, *btn_next, *page_label;
     lv_obj_t *img_container;
     lv_obj_t *img_obj;
-    lv_img_dsc_t cached_dsc;   /**< 缓存命中时指向已解码像素, 生命周期与页面一致 */
 
     /* 图片列表 */
     char image_list[MAX_IMAGES][512];  /**< 当前目录所有图片的完整路径 */
