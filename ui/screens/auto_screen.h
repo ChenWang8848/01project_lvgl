@@ -12,6 +12,7 @@ typedef struct {
     base_screen_t base;
     lv_obj_t *title_bar, *title_label, *back_btn;
     lv_obj_t *bottom_bar, *btn_prev, *btn_next, *page_label;
+    lv_obj_t *img_container;
     lv_obj_t *img_obj;
 
     /* 图片列表 */

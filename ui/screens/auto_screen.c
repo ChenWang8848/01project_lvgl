@@ -66,8 +66,10 @@ static void *preload_worker(void *arg)
      * 实际可行路径: 线程只做 fopen+fread, 将 raw bytes 写入缓存;
      * 主线程命中缓存时, 写临时文件并用 lv_img_set_src 快速加载
      */
+    const char *ext = strrchr(path, '.');
     char tmp_path[256];
-    snprintf(tmp_path, sizeof(tmp_path), "/tmp/lv_pre_%d.bmp", (int)(intptr_t)pthread_self());
+    snprintf(tmp_path, sizeof(tmp_path), "/tmp/lv_pre_%d%s",
+             (int)(intptr_t)pthread_self(), ext ? ext : "");
 
     /* 简单判断: 如果是 BMP 直接存 raw; PNG 需先解码
      * 为兼容, 直接存原始文件到 /tmp, 主线程加载时走 lv_fs */
@@ -141,6 +143,7 @@ static void show_current(auto_screen_t *self)
         if (zoom > 256) zoom = 256;
         lv_img_set_zoom(self->img_obj, zoom);
     }
+    lv_obj_center(self->img_obj);
 
     gettimeofday(&t2, NULL);
     long us = (t2.tv_sec - t1.tv_sec) * 1000000
@@ -234,14 +237,22 @@ static lv_obj_t *auto_screen_create(base_screen_t *base)
     if (font_cjk_24) lv_obj_set_style_text_font(self->title_label, font_cjk_24, LV_PART_MAIN);
     lv_obj_set_pos(self->title_label, 110, 12);
 
-    /* 图片 (780×370, y=62) */
-    self->img_obj = lv_img_create(self->base.screen);
-    lv_obj_set_pos(self->img_obj, 10, 62);
-    lv_obj_set_size(self->img_obj, 780, 370);
-    lv_obj_set_style_bg_color(self->img_obj, lv_color_hex(0x3D3222), LV_PART_MAIN);
-    lv_obj_set_style_bg_opa(self->img_obj, LV_OPA_30, LV_PART_MAIN);
-    lv_obj_set_style_radius(self->img_obj, 8, LV_PART_MAIN);
+    /* 图片容器 (780×370, y=62) — 提供背景与圆角裁剪 */
+    self->img_container = lv_obj_create(self->base.screen);
+    lv_obj_set_pos(self->img_container, 10, 62);
+    lv_obj_set_size(self->img_container, 780, 370);
+    lv_obj_set_style_bg_color(self->img_container, lv_color_hex(0x3D3222), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(self->img_container, LV_OPA_30, LV_PART_MAIN);
+    lv_obj_set_style_radius(self->img_container, 8, LV_PART_MAIN);
+    lv_obj_set_style_border_width(self->img_container, 0, LV_PART_MAIN);
+    lv_obj_clear_flag(self->img_container, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_style_clip_corner(self->img_container, true, LV_PART_MAIN);
+
+    /* 图片 — 作为容器子对象, REAL + SIZE_CONTENT 使控件贴合图像，不再平铺 */
+    self->img_obj = lv_img_create(self->img_container);
     lv_img_set_size_mode(self->img_obj, LV_IMG_SIZE_MODE_REAL);
+    lv_obj_set_size(self->img_obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+    lv_obj_center(self->img_obj);
 
     /* 底栏 */
     self->bottom_bar = lv_obj_create(self->base.screen);
