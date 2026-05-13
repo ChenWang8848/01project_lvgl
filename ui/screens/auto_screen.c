@@ -31,57 +31,73 @@ static const char *base_name(const char *path)
 /* ================================================================
  *  预加载线程
  * ================================================================ */
+static pthread_mutex_t g_decode_mutex = PTHREAD_MUTEX_INITIALIZER;
+
 static void *preload_worker(void *arg)
 {
     char *path = (char *)arg;
-    char fs_path[520];
-    snprintf(fs_path, sizeof(fs_path), "S:%s", path);
 
     /* 先检查缓存是否已有 */
     uint32_t w, h;
-    if (image_cache_lookup(path, &w, &h)) {
+    uint8_t cf;
+    if (image_cache_lookup(path, &w, &h, &cf)) {
         free(path);
-        return NULL; /* 已有, 跳过 */
+        return NULL;
     }
-    /* 读文件 */
-    FILE *fp = fopen(path, "rb");
-    if (!fp) { free(path); return NULL; }
-    fseek(fp, 0, SEEK_END);
-    long size = ftell(fp);
-    fseek(fp, 0, SEEK_SET);
-    if (size <= 0 || size > 4 * 1024 * 1024) { fclose(fp); free(path); return NULL; }
 
-    uint8_t *raw = malloc(size);
-    if (!raw) { fclose(fp); free(path); return NULL; }
-    fread(raw, 1, size, fp);
-    fclose(fp);
+    /* 使用 LVGL 解码器解码 (加锁保证线程安全) */
+    char fs_path[520];
+    snprintf(fs_path, sizeof(fs_path), "S:%s", path);
 
-    /* 解码 BMP/PNG → RGBA8888
-     * 使用 LVGL 内置解码器 (通过临时 lv_img_dsc_t 机制不可用于线程)
-     * 改为使用 stb_image 简易解码或直接创建 lv_img_dsc
-     *
-     * 简化方案: 在线程中读文件→存 raw bytes, 主线程异步解码
-     * 但我们没法在线程中调 lv_img_decoder_open (非线程安全)
-     *
-     * 实际可行路径: 线程只做 fopen+fread, 将 raw bytes 写入缓存;
-     * 主线程命中缓存时, 写临时文件并用 lv_img_set_src 快速加载
-     */
-    const char *ext = strrchr(path, '.');
-    char tmp_path[256];
-    snprintf(tmp_path, sizeof(tmp_path), "/tmp/lv_pre_%d%s",
-             (int)(intptr_t)pthread_self(), ext ? ext : "");
+    pthread_mutex_lock(&g_decode_mutex);
 
-    /* 简单判断: 如果是 BMP 直接存 raw; PNG 需先解码
-     * 为兼容, 直接存原始文件到 /tmp, 主线程加载时走 lv_fs */
-    FILE *tmp = fopen(tmp_path, "wb");
-    if (tmp) {
-        fwrite(raw, 1, size, tmp);
-        fclose(tmp);
+    lv_img_header_t header;
+    lv_res_t res = lv_img_decoder_get_info(fs_path, &header);
+    if (res != LV_RES_OK || header.w == 0 || header.h == 0) {
+        pthread_mutex_unlock(&g_decode_mutex);
+        free(path);
+        return NULL;
     }
-    free(raw);
 
-    /* 标记缓存 (存储 tmp 路径而非实际像素) */
-    image_cache_put(path, (uint8_t *)strdup(tmp_path), 0, 0);
+    uint8_t px_size = lv_img_cf_get_px_size(header.cf) >> 3;
+    if (px_size == 0) px_size = 4;
+    uint32_t data_size = (uint32_t)header.w * header.h * px_size;
+    if (data_size > 8 * 1024 * 1024) {
+        pthread_mutex_unlock(&g_decode_mutex);
+        free(path);
+        return NULL;
+    }
+
+    uint8_t *pixels = malloc(data_size);
+    if (!pixels) {
+        pthread_mutex_unlock(&g_decode_mutex);
+        free(path);
+        return NULL;
+    }
+
+    lv_img_decoder_dsc_t dsc;
+    res = lv_img_decoder_open(&dsc, fs_path, lv_color_black(), 0);
+    if (res != LV_RES_OK) {
+        pthread_mutex_unlock(&g_decode_mutex);
+        free(pixels);
+        free(path);
+        return NULL;
+    }
+
+    /* 逐行读出像素 (兼容 BMP / PNG / 所有格式) */
+    uint8_t *dst = pixels;
+    for (uint32_t y = 0; y < header.h; y++) {
+        lv_res_t line_res = lv_img_decoder_read_line(&dsc, 0, (lv_coord_t)y,
+                                                      header.w, dst);
+        if (line_res != LV_RES_OK) break;
+        dst += header.w * px_size;
+    }
+
+    lv_img_decoder_close(&dsc);
+    pthread_mutex_unlock(&g_decode_mutex);
+
+    /* 存入缓存 (缓存接管 pixels 所有权) */
+    image_cache_put(path, pixels, header.w, header.h, (uint8_t)header.cf);
     free(path);
     return NULL;
 }
@@ -122,23 +138,40 @@ static void show_current(auto_screen_t *self)
     struct timeval t1, t2;
     gettimeofday(&t1, NULL);
 
-    /* 1. 查询预加载缓存, 构造 fs 路径 */
-    char fs_path[520];
+    /* 1. 查询预加载缓存 (存储的是已解码的 RGBA 像素) */
     uint32_t cw, ch;
-    uint8_t *cached = image_cache_lookup(path, &cw, &ch);
-    if (cached && cached[0]) {
-        snprintf(fs_path, sizeof(fs_path), "S:%s", (char *)cached);
-    } else {
-        snprintf(fs_path, sizeof(fs_path), "S:%s", path);
-    }
-    lv_img_set_src(self->img_obj, fs_path);
+    uint8_t cf;
+    uint8_t *cached_px = image_cache_lookup(path, &cw, &ch, &cf);
+    uint32_t img_w = 0, img_h = 0;
 
-    /* 缩放适配: 获取图像真实尺寸, 等比缩放至 780 x 370 内 */
-    lv_img_header_t header;
-    if (lv_img_decoder_get_info(fs_path, &header) == LV_RES_OK
-        && header.w > 0 && header.h > 0) {
-        uint16_t zoom_x = (780 * 256) / header.w;
-        uint16_t zoom_y = (370 * 256) / header.h;
+    if (cached_px) {
+        /* 缓存命中: 直接用已解码像素构造 lv_img_dsc_t, 零解码开销 */
+        lv_img_dsc_t img_dsc;
+        img_dsc.header.cf = cf;
+        img_dsc.header.w = (lv_coord_t)cw;
+        img_dsc.header.h = (lv_coord_t)ch;
+        img_dsc.data      = cached_px;
+        img_dsc.data_size = cw * ch * (lv_img_cf_get_px_size(cf) >> 3);
+        lv_img_set_src(self->img_obj, &img_dsc);
+        img_w = cw;
+        img_h = ch;
+    } else {
+        /* 缓存未命中: 同步解码 */
+        char fs_path[520];
+        snprintf(fs_path, sizeof(fs_path), "S:%s", path);
+        lv_img_set_src(self->img_obj, fs_path);
+
+        lv_img_header_t header;
+        if (lv_img_decoder_get_info(fs_path, &header) == LV_RES_OK) {
+            img_w = header.w;
+            img_h = header.h;
+        }
+    }
+
+    /* 缩放适配: 等比缩放至 780 x 370 内 */
+    if (img_w > 0 && img_h > 0) {
+        uint16_t zoom_x = (780 * 256) / img_w;
+        uint16_t zoom_y = (370 * 256) / img_h;
         uint16_t zoom = (zoom_x < zoom_y) ? zoom_x : zoom_y;
         if (zoom > 256) zoom = 256;
         lv_img_set_zoom(self->img_obj, zoom);
@@ -150,7 +183,7 @@ static void show_current(auto_screen_t *self)
             + (t2.tv_usec - t1.tv_usec);
     printf("[预加载] %s → %.3f ms %s\n",
            base_name(path), us / 1000.0,
-           (cached && cached[0]) ? "(缓存命中)" : "(同步解码)");
+           cached_px ? "(缓存命中)" : "(同步解码)");
 
     /* 更新 UI */
     lv_label_set_text(self->title_label, base_name(path));
